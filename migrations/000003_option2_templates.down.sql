@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS template_overrides;
+DROP TABLE IF EXISTS x12_templates;
+DROP TABLE IF EXISTS payer_configs;
+DROP TABLE IF EXISTS claim_service_lines;
+DROP TABLE IF EXISTS claims;
+DROP TABLE IF EXISTS visits;
+DROP TABLE IF EXISTS authorizations;
+DROP TABLE IF EXISTS patients;
+DROP TABLE IF EXISTS agencies;

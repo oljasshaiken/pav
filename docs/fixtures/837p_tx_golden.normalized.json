@@ -1,0 +1,87 @@
+{
+  "claim_id": "00000000-0000-4000-8000-000000000001",
+  "payer_id": "TX-MCO-001",
+  "x12_version": "005010X222A1",
+  "segments": [
+    {
+      "loop": "envelope",
+      "segment": "ISA",
+      "elements": ["00", "", "00", "", "ZZ", "PAVILLIO", "ZZ", "TX_MCO", "260531", "1200", "^", "00501", "000000001", "0", "T", ":"]
+    },
+    {
+      "loop": "envelope",
+      "segment": "GS",
+      "elements": ["HC", "PAVILLIO", "TX_MCO", "20260531", "1200", "1", "X", "005010X222A1"]
+    },
+    {
+      "loop": "envelope",
+      "segment": "ST",
+      "elements": ["837", "0001", "005010X222A1"]
+    },
+    {
+      "loop": "header",
+      "segment": "BHT",
+      "elements": ["0019", "00", "CLM-DEMO-001", "20260531", "1200", "CH"]
+    },
+    {
+      "loop": "2000A",
+      "segment": "HL",
+      "elements": ["1", "", "20", "1"]
+    },
+    {
+      "loop": "2000A",
+      "segment": "NM1",
+      "elements": ["85", "2", "Demo Home Care TX", "", "", "", "XX", "1234567890"]
+    },
+    {
+      "loop": "2000B",
+      "segment": "HL",
+      "elements": ["2", "1", "22", "0"]
+    },
+    {
+      "loop": "2010BA",
+      "segment": "NM1",
+      "elements": ["IL", "1", "Patient", "Synthetic", "", "", "MI", "SYN-TX-00001"]
+    },
+    {
+      "loop": "2300",
+      "segment": "CLM",
+      "elements": ["CLM-DEMO-001", "100.00", "", "", "11:B:1", "Y", "A", "Y", "Y"]
+    },
+    {
+      "loop": "2300",
+      "segment": "HI",
+      "elements": ["ABK:Z9999"]
+    },
+    {
+      "loop": "2400",
+      "segment": "LX",
+      "elements": ["1"]
+    },
+    {
+      "loop": "2400",
+      "segment": "SV1",
+      "elements": ["HC:T1019", "100.00", "UN", "4", "", "", "1"]
+    },
+    {
+      "loop": "2400",
+      "segment": "REF",
+      "elements": ["EVV", "20260501T090000"]
+    },
+    {
+      "loop": "envelope",
+      "segment": "SE",
+      "elements": ["13", "0001"]
+    },
+    {
+      "loop": "envelope",
+      "segment": "GE",
+      "elements": ["1", "1"]
+    },
+    {
+      "loop": "envelope",
+      "segment": "IEA",
+      "elements": ["1", "000000001"]
+    }
+  ]
+}
