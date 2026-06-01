@@ -278,3 +278,20 @@ FROM authorizations WHERE id = $1`, id).Scan(
 	}
 	return a, nil
 }
+
+// SaveGeneratedEDI persists dry-run submit output for a claim.
+func (s *Store) SaveGeneratedEDI(ctx context.Context, claimID uuid.UUID, edi string) (int32, error) {
+	var attempt int32
+	err := s.pool.QueryRow(ctx, `
+UPDATE claims
+SET x12_837 = $2, submission_attempt = submission_attempt + 1, last_submitted_at = now()
+WHERE id = $1
+RETURNING submission_attempt`, claimID, edi).Scan(&attempt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("save generated edi: %w", err)
+	}
+	return attempt, nil
+}

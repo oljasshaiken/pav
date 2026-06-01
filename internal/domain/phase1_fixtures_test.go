@@ -10,23 +10,15 @@ import (
 )
 
 const (
-	fixturePayerConfig   = "../../docs/fixtures/payer_config_837p_tx.json"
-	fixtureTemplate      = "../../docs/fixtures/template_837p_base.json"
-	fixtureOverride      = "../../docs/fixtures/override_837p_tx.json"
-	fixtureGoldenNorm    = "../../docs/fixtures/837p_tx_golden.normalized.json"
-	fixtureGoldenX12     = "../../docs/fixtures/837p_tx_golden.x12"
-	seedClaimID          = "00000000-0000-4000-8000-000000000001"
-	referencePayerID     = "TX-MCO-001"
-	referenceX12Version  = "005010X222A1"
+	fixturePayerConfig  = "../../docs/fixtures/payer_config_837p_tx.json"
+	fixtureTemplate     = "../../docs/fixtures/template_837p_base.json"
+	fixtureOverride     = "../../docs/fixtures/override_837p_tx.json"
+	fixtureGoldenNorm   = "../../docs/fixtures/837p_tx_golden.normalized.json"
+	fixtureGoldenX12    = "../../docs/fixtures/837p_tx_golden.x12"
+	seedClaimID         = "00000000-0000-4000-8000-000000000001"
+	referencePayerID    = "TX-MCO-001"
+	referenceX12Version = "005010X222A1"
 )
-
-type mappingSection struct {
-	Patient     json.RawMessage `json:"patient"`
-	Agency      json.RawMessage `json:"agency"`
-	Claim       json.RawMessage `json:"claim"`
-	ServiceLine json.RawMessage `json:"service_line"`
-	EVV         json.RawMessage `json:"evv"`
-}
 
 type payerConfigMappings struct {
 	Patient     map[string]any `json:"patient"`

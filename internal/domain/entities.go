@@ -10,6 +10,7 @@ import (
 type Agency struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
+	NPI       string    `json:"npi,omitempty"`
 	State     string    `json:"state"`
 	CreatedAt time.Time `json:"created_at"`
 }

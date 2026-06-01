@@ -7,11 +7,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/pavillio/pav-edi/internal/api"
 	"github.com/pavillio/pav-edi/internal/platform"
 	"github.com/pavillio/pav-edi/internal/repository"
 	"github.com/pavillio/pav-edi/internal/rules"
+	"github.com/pavillio/pav-edi/internal/submission"
 	"github.com/pavillio/pav-edi/internal/validation"
 )
 
@@ -28,10 +30,14 @@ func main() {
 
 	store := repository.New(pool)
 	srv := &api.Server{
-		Engine:     &rules.StubEngine{Store: store},
+		Engine: &rules.RulesEngine{
+			Store: store,
+			Now:   func() time.Time { return time.Now().UTC() },
+		},
 		EngineName: "rules",
 		Store:      store,
-		Validate:   validation.NoopPipeline{},
+		Validate:   validation.ConfigPipeline{},
+		Submit:     &submission.DryRunService{Store: store},
 	}
 
 	httpServer := &http.Server{

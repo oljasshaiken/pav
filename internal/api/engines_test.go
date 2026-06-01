@@ -2,8 +2,8 @@ package api_test
 
 import (
 	"context"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -13,13 +13,14 @@ import (
 	"github.com/pavillio/pav-edi/internal/testutil"
 )
 
-func TestEnginesProduceDistinctPlaceholderEDI(t *testing.T) {
+func TestEnginesProduceMatchingEDI(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	store := repository.New(pool)
 	ctx := context.Background()
+	now := goldenNow()
 
 	claimID := uuid.MustParse("00000000-0000-4000-8000-000000000001")
-	testutil.InsertFixtureClaim(t, pool, claimID)
+	testutil.InsertGoldenFixtureClaim(t, pool, claimID)
 	testutil.InsertPayerConfig(t, pool)
 	testutil.InsertTemplateOverride(t, pool)
 
@@ -28,22 +29,16 @@ func TestEnginesProduceDistinctPlaceholderEDI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rulesDoc, err := (&rules.StubEngine{Store: store}).Transform(ctx, cc)
+	rulesDoc, err := (&rules.RulesEngine{Store: store, Now: func() time.Time { return now }}).Transform(ctx, cc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	templateDoc, err := (&template.StubRenderer{Store: store}).Transform(ctx, cc)
+	templateDoc, err := (&template.Renderer{Store: store, Now: func() time.Time { return now }}).Transform(ctx, cc)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if rulesDoc.Raw == templateDoc.Raw {
-		t.Fatalf("engines produced identical edi: %q", rulesDoc.Raw)
-	}
-	if !strings.HasPrefix(rulesDoc.Raw, "rules:") {
-		t.Fatalf("rules edi = %q", rulesDoc.Raw)
-	}
-	if !strings.HasPrefix(templateDoc.Raw, "template:") {
-		t.Fatalf("template edi = %q", templateDoc.Raw)
+	if rulesDoc.Raw != templateDoc.Raw {
+		t.Fatalf("engines produced different edi")
 	}
 }
