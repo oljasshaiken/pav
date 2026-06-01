@@ -1,0 +1,186 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Pavillio EDI Option 3 — LocalStack dev stack
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: provided.al2023
+    Architectures: [x86_64]
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseURL
+        REDIS_URL: !Ref RedisURL
+        OUTBOUND_BUCKET: !Ref OutboundBucket
+        INBOUND_BUCKET: !Ref InboundBucket
+        DLQ_URL: !Ref ClaimsDLQ
+
+Parameters:
+  DatabaseURL:
+    Type: String
+    Default: postgres://pav:pav@host.docker.internal:5432/pav?sslmode=disable
+  RedisURL:
+    Type: String
+    Default: redis://host.docker.internal:6379/0
+  Environment:
+    Type: String
+    Default: local
+
+Resources:
+  OutboundBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: pav-edi-outbound
+
+  InboundBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: pav-edi-inbound
+
+  ClaimsDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: pav-edi-claims-dlq.fifo
+      FifoQueue: true
+      ContentBasedDeduplication: true
+
+  ClaimsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: pav-edi-claims.fifo
+      FifoQueue: true
+      ContentBasedDeduplication: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ClaimsDLQ.Arn
+        maxReceiveCount: 3
+
+  LoadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pav-edi-load
+      Handler: bootstrap
+      CodeUri: ../cmd/lambda/load/
+      Description: Load claim context and payer config
+    Metadata:
+      BuildMethod: go1.x
+
+  RulesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pav-edi-rules
+      Handler: bootstrap
+      CodeUri: ../cmd/lambda/rules/
+      Description: CEL rules evaluation
+    Metadata:
+      BuildMethod: go1.x
+
+  TransformerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pav-edi-transformer
+      Handler: bootstrap
+      CodeUri: ../cmd/lambda/transformer/
+      Description: 837P transform Lambda
+    Metadata:
+      BuildMethod: go1.x
+
+  PersistFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pav-edi-persist
+      Handler: bootstrap
+      CodeUri: ../cmd/lambda/persist/
+      Description: Persist EDI to Postgres and S3
+    Metadata:
+      BuildMethod: go1.x
+
+  PublishDLQFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pav-edi-publish-dlq
+      Handler: bootstrap
+      CodeUri: ../cmd/lambda/dlq/
+      Description: Publish structured failures to DLQ
+    Metadata:
+      BuildMethod: go1.x
+
+  DispatchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pav-edi-dispatch
+      Handler: bootstrap
+      CodeUri: ../cmd/lambda/dispatch/
+      Description: SQS FIFO consumer — runs outbound workflow
+      Events:
+        ClaimsQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ClaimsQueue.Arn
+            BatchSize: 1
+    Metadata:
+      BuildMethod: go1.x
+
+  ParserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pav-edi-parser
+      Handler: bootstrap
+      CodeUri: ../cmd/lambda/parser/
+      Description: Parse inbound 277/999 acknowledgments
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref InboundBucket
+    Metadata:
+      BuildMethod: go1.x
+
+  InboundAckWorkflow:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: pav-edi-inbound-ack
+      DefinitionUri: statemachine/inbound.asl.json
+      DefinitionSubstitutions:
+        ParserFunctionArn: !GetAtt ParserFunction.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ParserFunction
+
+  OutboundClaimWorkflow:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: pav-edi-outbound-claim
+      DefinitionUri: statemachine/outbound.asl.json
+      DefinitionSubstitutions:
+        LoadFunctionArn: !GetAtt LoadFunction.Arn
+        RulesFunctionArn: !GetAtt RulesFunction.Arn
+        TransformFunctionArn: !GetAtt TransformerFunction.Arn
+        PersistFunctionArn: !GetAtt PersistFunction.Arn
+        PublishDLQFunctionArn: !GetAtt PublishDLQFunction.Arn
+        OutboundBucketName: !Ref OutboundBucket
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref LoadFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref RulesFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TransformerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PersistFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PublishDLQFunction
+
+Outputs:
+  OutboundClaimWorkflowArn:
+    Value: !Ref OutboundClaimWorkflow
+  ClaimsQueueUrl:
+    Value: !Ref ClaimsQueue
+  ClaimsDLQUrl:
+    Value: !Ref ClaimsDLQ
+  DispatchFunctionArn:
+    Value: !GetAtt DispatchFunction.Arn
+  PublishDLQFunctionArn:
+    Value: !GetAtt PublishDLQFunction.Arn
+  InboundAckWorkflowArn:
+    Value: !Ref InboundAckWorkflow
+  ParserFunctionArn:
+    Value: !GetAtt ParserFunction.Arn

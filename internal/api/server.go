@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/pavillio/pav-edi/internal/domain"
+	"github.com/pavillio/pav-edi/internal/pipeline"
+	"github.com/pavillio/pav-edi/internal/platform"
 	"github.com/pavillio/pav-edi/internal/repository"
 	"github.com/pavillio/pav-edi/internal/submission"
 	"github.com/pavillio/pav-edi/internal/validation"
@@ -78,7 +80,12 @@ func (s *Server) handleEDI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	doc, err := s.generateEDI(r.Context(), claimID)
+	ctx, ok := requestContextWithGeneratedAt(w, r)
+	if !ok {
+		return
+	}
+
+	doc, err := s.generateEDI(ctx, claimID)
 	if err := writeGenerateError(w, err); err != nil {
 		return
 	}
@@ -112,12 +119,17 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	doc, err := s.generateEDI(r.Context(), claimID)
+	ctx, ok := requestContextWithGeneratedAt(w, r)
+	if !ok {
+		return
+	}
+
+	doc, err := s.generateEDI(ctx, claimID)
 	if err := writeGenerateError(w, err); err != nil {
 		return
 	}
 
-	attempt, err := s.Submit.SubmitDryRun(r.Context(), claimID, doc)
+	attempt, err := s.Submit.SubmitDryRun(ctx, claimID, doc)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal error")
 		return
@@ -155,11 +167,11 @@ func writeGenerateError(w http.ResponseWriter, err error) error {
 	if err == nil {
 		return nil
 	}
-	if errors.Is(err, errClaimNotFound) {
+	if errors.Is(err, pipeline.ErrClaimNotFound) {
 		writeError(w, http.StatusNotFound, "CLAIM_NOT_FOUND", "claim not found")
 		return err
 	}
-	if errors.Is(err, errConfigNotFound) {
+	if errors.Is(err, pipeline.ErrConfigNotFound) {
 		writeError(w, http.StatusUnprocessableEntity, "CONFIG_NOT_FOUND", "config not found")
 		return err
 	}
@@ -195,4 +207,18 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	body.Error.Code = code
 	body.Error.Message = message
 	writeJSON(w, status, body)
+}
+
+func requestContextWithGeneratedAt(w http.ResponseWriter, r *http.Request) (context.Context, bool) {
+	ctx := r.Context()
+	ga := r.URL.Query().Get("generated_at")
+	if ga == "" {
+		return ctx, true
+	}
+	t, ok := platform.ParseGeneratedAt(ga)
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, "INVALID_REQUEST", "invalid generated_at (RFC3339 required)")
+		return ctx, false
+	}
+	return platform.WithGeneratedAt(ctx, t), true
 }

@@ -16,8 +16,6 @@
 vendor/
 
 # Project
-docs/
-scripts/
 AGENTS.md
 CLAUDE.md
 .serena/
@@ -26,3 +24,5 @@ CLAUDE.md
 .cursor/plans/
 .cursor/plans/PHASE-0-TASKS.md
 .cursor/plans/PHASE-0-TASKS.md
+
+docs/*

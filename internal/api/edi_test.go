@@ -186,6 +186,23 @@ func TestSubmitNotImplemented(t *testing.T) {
 	}
 }
 
+func TestGetClaimEDI_InvalidGeneratedAt(t *testing.T) {
+	pool := testutil.StartPostgres(t)
+	store := repository.New(pool)
+	claimID := uuid.MustParse("00000000-0000-4000-8000-000000000001")
+	testutil.InsertGoldenFixtureClaim(t, pool, claimID)
+	testutil.InsertPayerConfig(t, pool)
+
+	srv := newRulesServer(store, goldenNow())
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/claims/"+claimID.String()+"/edi?generated_at=not-a-date", nil)
+	srv.Routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestGetClaimEDI_NilStore(t *testing.T) {
 	srv := &api.Server{
 		Engine:   &rules.RulesEngine{},

@@ -1,0 +1,16 @@
+{
+  "Comment": "InboundAckWorkflow — S3 277/999 → claims.response_277",
+  "StartAt": "Parse277",
+  "States": {
+    "Parse277": {
+      "Type": "Task",
+      "Resource": "${ParserFunctionArn}",
+      "Parameters": {
+        "s3_bucket.$": "$.s3_bucket",
+        "s3_key.$": "$.s3_key",
+        "claim_id.$": "$.claim_id"
+      },
+      "End": true
+    }
+  }
+}

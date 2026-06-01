@@ -8,6 +8,7 @@ import (
 
 	"github.com/pavillio/pav-edi/internal/domain"
 	"github.com/pavillio/pav-edi/internal/edi"
+	"github.com/pavillio/pav-edi/internal/platform"
 	"github.com/pavillio/pav-edi/internal/repository"
 	"github.com/pavillio/pav-edi/pkg/x12"
 )
@@ -32,10 +33,7 @@ func (r *Renderer) Transform(ctx context.Context, input domain.ClaimContext) (x1
 		return x12.Document{}, err
 	}
 
-	now := time.Now().UTC()
-	if r.Now != nil {
-		now = r.Now()
-	}
+	now := platform.ResolveNow(ctx, r.now)
 	raw, err := edi.Generate837P(pc.Config.Envelope, mappings, input, now)
 	if err != nil {
 		return x12.Document{}, fmt.Errorf("generate 837P: %w", err)
@@ -47,6 +45,13 @@ func (r *Renderer) Transform(ctx context.Context, input domain.ClaimContext) (x1
 		ConfigVersion: o.OverrideVersion,
 		GeneratedAt:   now,
 	}, nil
+}
+
+func (r *Renderer) now() time.Time {
+	if r.Now != nil {
+		return r.Now()
+	}
+	return time.Now().UTC()
 }
 
 // StubRenderer is an alias for Renderer.

@@ -28,12 +28,6 @@ type payerConfigMappings struct {
 	EVV         map[string]any `json:"evv"`
 }
 
-type validationRule struct {
-	Field     string `json:"field"`
-	Rule      string `json:"rule"`
-	Condition string `json:"condition"`
-}
-
 type normalizedSegment struct {
 	Loop     string   `json:"loop"`
 	Segment  string   `json:"segment"`
@@ -110,20 +104,27 @@ func TestPhase1_PayerConfigFixture(t *testing.T) {
 		t.Fatal("mappings.evv.custom_ref_segment is required")
 	}
 
-	var rules []validationRule
-	if err := json.Unmarshal(cfg.ValidationRules, &rules); err != nil {
+	celValidation, err := cfg.CELValidationRules()
+	if err != nil {
 		t.Fatalf("validation_rules: %v", err)
 	}
 	foundDiagnosis := false
-	for _, rule := range rules {
-		if rule.Field == "diagnosis_code" && rule.Rule == "required" &&
-			strings.Contains(rule.Condition, "home_health") {
+	for _, rule := range celValidation {
+		if rule.ID == "diagnosis_required" && strings.Contains(rule.CEL, "home_health") {
 			foundDiagnosis = true
 			break
 		}
 	}
 	if !foundDiagnosis {
-		t.Fatal("validation_rules must require diagnosis_code for home_health")
+		t.Fatal("validation_rules must require diagnosis for home_health via CEL")
+	}
+
+	evvRules, err := cfg.CELEvvRules()
+	if err != nil {
+		t.Fatalf("evv_rules: %v", err)
+	}
+	if len(evvRules) == 0 {
+		t.Fatal("evv_rules must not be empty for TX reference config")
 	}
 }
 

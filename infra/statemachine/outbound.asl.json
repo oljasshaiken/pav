@@ -1,0 +1,133 @@
+{
+  "Comment": "OutboundClaimWorkflow — TX 837P generation with DLQ on failure",
+  "StartAt": "LoadClaim",
+  "States": {
+    "LoadClaim": {
+      "Type": "Task",
+      "Resource": "${LoadFunctionArn}",
+      "Next": "RulesPre",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "PublishLoadError" }]
+    },
+    "RulesPre": {
+      "Type": "Task",
+      "Resource": "${RulesFunctionArn}",
+      "Parameters": {
+        "claim_id.$": "$.claim_id",
+        "phase": "pre_transform",
+        "claim_context.$": "$.claim_context",
+        "payer_config.$": "$.payer_config",
+        "config_version.$": "$.config_version"
+      },
+      "ResultPath": "$.rules_pre",
+      "Next": "CheckRulesPre",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "PublishLoadError" }]
+    },
+    "CheckRulesPre": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.rules_pre.valid",
+          "BooleanEquals": true,
+          "Next": "Transform"
+        }
+      ],
+      "Default": "PublishRulesPreFailure"
+    },
+    "Transform": {
+      "Type": "Task",
+      "Resource": "${TransformFunctionArn}",
+      "Parameters": {
+        "claim_id.$": "$.claim_id",
+        "config_version.$": "$.config_version",
+        "claim_context.$": "$.claim_context",
+        "payer_config.$": "$.payer_config"
+      },
+      "ResultPath": "$.transform",
+      "Next": "RulesPost",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "PublishLoadError" }]
+    },
+    "RulesPost": {
+      "Type": "Task",
+      "Resource": "${RulesFunctionArn}",
+      "Parameters": {
+        "claim_id.$": "$.claim_id",
+        "phase": "post_transform",
+        "claim_context.$": "$.claim_context",
+        "payer_config.$": "$.payer_config",
+        "config_version.$": "$.config_version",
+        "document.$": "$.transform.document"
+      },
+      "ResultPath": "$.rules_post",
+      "Next": "CheckRulesPost",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "PublishLoadError" }]
+    },
+    "CheckRulesPost": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.rules_post.valid",
+          "BooleanEquals": true,
+          "Next": "Persist"
+        }
+      ],
+      "Default": "PublishRulesPostFailure"
+    },
+    "Persist": {
+      "Type": "Task",
+      "Resource": "${PersistFunctionArn}",
+      "Parameters": {
+        "claim_id.$": "$.claim_id",
+        "document.$": "$.transform.document",
+        "s3_bucket": "${OutboundBucketName}"
+      },
+      "ResultPath": "$.persist",
+      "Next": "Succeeded",
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "PublishLoadError" }]
+    },
+    "PublishRulesPreFailure": {
+      "Type": "Task",
+      "Resource": "${PublishDLQFunctionArn}",
+      "Parameters": {
+        "claim_id.$": "$.claim_id",
+        "payer_id.$": "$.claim_context.claim.payer_id",
+        "state.$": "$.claim_context.claim.state",
+        "phase": "pre_transform",
+        "error.$": "$.rules_pre.error"
+      },
+      "Next": "WorkflowFailed"
+    },
+    "PublishRulesPostFailure": {
+      "Type": "Task",
+      "Resource": "${PublishDLQFunctionArn}",
+      "Parameters": {
+        "claim_id.$": "$.claim_id",
+        "payer_id.$": "$.claim_context.claim.payer_id",
+        "state.$": "$.claim_context.claim.state",
+        "phase": "post_transform",
+        "error.$": "$.rules_post.error"
+      },
+      "Next": "WorkflowFailed"
+    },
+    "PublishLoadError": {
+      "Type": "Task",
+      "Resource": "${PublishDLQFunctionArn}",
+      "Parameters": {
+        "claim_id.$": "$.claim_id",
+        "code": "WORKFLOW_ERROR",
+        "error": {
+          "code": "WORKFLOW_ERROR",
+          "message": "load or transform step failed"
+        }
+      },
+      "Next": "WorkflowFailed"
+    },
+    "Succeeded": {
+      "Type": "Succeed"
+    },
+    "WorkflowFailed": {
+      "Type": "Fail",
+      "Error": "WorkflowFailed",
+      "Cause": "Outbound claim workflow failed"
+    }
+  }
+}

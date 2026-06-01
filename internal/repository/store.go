@@ -295,3 +295,32 @@ RETURNING submission_attempt`, claimID, edi).Scan(&attempt)
 	}
 	return attempt, nil
 }
+
+// SaveResponse277 stores an inbound 277/999 acknowledgment on the claim.
+func (s *Store) SaveResponse277(ctx context.Context, claimID uuid.UUID, response string) error {
+	tag, err := s.pool.Exec(ctx, `
+UPDATE claims SET response_277 = $2 WHERE id = $1`, claimID, response)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("save response 277: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// FindClaimIDByNumber resolves a claim UUID from its claim_number.
+func (s *Store) FindClaimIDByNumber(ctx context.Context, claimNumber string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := s.pool.QueryRow(ctx, `SELECT id FROM claims WHERE claim_number = $1 LIMIT 1`, claimNumber).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("find claim by number: %w", err)
+	}
+	return id, nil
+}

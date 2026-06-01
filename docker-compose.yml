@@ -15,5 +15,35 @@ services:
     volumes:
       - pav_pg_data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:4
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,sqs,lambda,stepfunctions,cloudformation,iam,logs,sts
+      DEBUG: "0"
+      DOCKER_HOST: unix:///var/run/docker.sock
+      LAMBDA_DOCKER_FLAGS: "-e ENVIRONMENT=local"
+    volumes:
+      - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init.sh
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   pav_pg_data:
+  localstack_data:

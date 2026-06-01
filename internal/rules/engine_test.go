@@ -15,9 +15,9 @@ import (
 func TestEngine_Transform_producesRealX12(t *testing.T) {
 	e := &RulesEngine{Now: func() time.Time { return goldenTime() }}
 	cfg := loadPayerConfigBody(t)
-	ctx := mappingTestClaimContext()
+	claimCtx := mappingTestClaimContext()
 
-	doc, err := e.transformWithConfig(cfg, ctx, 1)
+	doc, err := e.transformWithConfig(context.Background(), cfg, claimCtx, 1)
 	if err != nil {
 		t.Fatalf("Transform: %v", err)
 	}
@@ -35,9 +35,9 @@ func TestEngine_Transform_producesRealX12(t *testing.T) {
 func TestEngine_Transform_matchesGoldenStrict(t *testing.T) {
 	e := &RulesEngine{Now: func() time.Time { return goldenTime() }}
 	cfg := loadPayerConfigBody(t)
-	ctx := mappingTestClaimContext()
+	claimCtx := mappingTestClaimContext()
 
-	doc, err := e.transformWithConfig(cfg, ctx, 1)
+	doc, err := e.transformWithConfig(context.Background(), cfg, claimCtx, 1)
 	if err != nil {
 		t.Fatalf("Transform: %v", err)
 	}
@@ -99,7 +99,7 @@ func collapseEDI(s string) string {
 	out := make([]byte, 0, len(s))
 	for i := 0; i < len(s); i++ {
 		if s[i] != '\n' {
-		 out = append(out, s[i])
+			out = append(out, s[i])
 		}
 	}
 	return string(out)

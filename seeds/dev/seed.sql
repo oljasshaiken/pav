@@ -1,4 +1,5 @@
--- Synthetic PHI only — Phase 0 dev seed
+-- Synthetic PHI only — Phase 1 dev seed (claim data)
+-- Full payer/template configs: run `make seed-configs` after this file.
 -- Claim UUID for make compare: 00000000-0000-4000-8000-000000000001
 
 INSERT INTO agencies (id, name, state)
@@ -53,7 +54,7 @@ VALUES (
   'DRAFT'
 ) ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO claim_service_lines (id, claim_id, visit_id, authorization_id, procedure_code, units, amount)
+INSERT INTO claim_service_lines (id, claim_id, visit_id, authorization_id, procedure_code, units, amount, diagnosis_codes)
 VALUES (
   'ffffffff-ffff-ffff-ffff-ffffffffffff',
   '00000000-0000-4000-8000-000000000001',
@@ -61,33 +62,6 @@ VALUES (
   'cccccccc-cccc-cccc-cccc-cccccccccccc',
   'T1019',
   4,
-  100.00
-) ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO payer_configs (state, payer_id, transaction_type, config_version, config, active)
-SELECT 'TX', 'TX-MCO-001', '837P', 1,
-  '{"x12_version":"005010X222A1","envelope":{"isa":{"sender_id":"PAVILLIO"}},"mappings":{"patient":{"loop_2010BA":{"NM103":"patient.last_name"}}},"validation_rules":[],"business_rules":{}}'::jsonb,
-  true
-WHERE NOT EXISTS (
-  SELECT 1 FROM payer_configs
-  WHERE state = 'TX' AND payer_id = 'TX-MCO-001' AND transaction_type = '837P' AND config_version = 1
-);
-
-INSERT INTO x12_templates (id, name, transaction_type, x12_version, template)
-VALUES (
-  '11111111-1111-1111-1111-111111111111',
-  '837P-base',
-  '837P',
-  '005010X222A1',
-  '{"loops":[{"id":"2300","segments":[{"tag":"CLM"}]}]}'::jsonb
-) ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO template_overrides (template_id, state, payer_id, override_version, mapper, active)
-SELECT '11111111-1111-1111-1111-111111111111', 'TX', 'TX-MCO-001', 1,
-  '{"mappings":{"patient":{"loop_2010BA":{"NM103":"patient.last_name"}}}}'::jsonb,
-  true
-WHERE NOT EXISTS (
-  SELECT 1 FROM template_overrides
-  WHERE template_id = '11111111-1111-1111-1111-111111111111'
-    AND state = 'TX' AND payer_id = 'TX-MCO-001' AND override_version = 1
-);
+  100.00,
+  ARRAY['Z9999']
+) ON CONFLICT (id) DO UPDATE SET diagnosis_codes = EXCLUDED.diagnosis_codes;
