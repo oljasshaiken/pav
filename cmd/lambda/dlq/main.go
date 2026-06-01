@@ -11,10 +11,12 @@ import (
 
 	"github.com/pavillio/pav-edi/internal/lambda/dlq"
 	"github.com/pavillio/pav-edi/internal/pipeline"
+	"github.com/pavillio/pav-edi/internal/platform/observability"
 	"github.com/pavillio/pav-edi/internal/queue"
 )
 
 func main() {
+	observability.InitLambda()
 	lambda.Start(handle)
 }
 

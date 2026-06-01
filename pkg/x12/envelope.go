@@ -95,7 +95,10 @@ func BuildISA(cfg ISAConfig, opts FixedClockOptions) Segment {
 }
 
 // BuildGS builds the functional group header.
-func BuildGS(cfg GSConfig, opts FixedClockOptions) Segment {
+func BuildGS(cfg GSConfig, opts FixedClockOptions, x12Version string) Segment {
+	if x12Version == "" {
+		x12Version = DefaultX12Version
+	}
 	return Segment{
 		Tag: "GS",
 		Elements: []string{
@@ -106,7 +109,7 @@ func BuildGS(cfg GSConfig, opts FixedClockOptions) Segment {
 			opts.GSTime,
 			opts.gsControl(cfg.GroupControlNumber),
 			"X",
-			"005010X222A1",
+			x12Version,
 		},
 	}
 }

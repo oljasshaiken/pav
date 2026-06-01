@@ -12,13 +12,22 @@ type Config struct {
 	DatabaseURL        string
 	RulesEnginePort    string
 	TemplateEnginePort string
+	DashboardAPIPort   string
+	RulesEngineURL     string
+	LocalStackEndpoint string
+	AWSRegion          string
 }
 
 func LoadConfig() Config {
+	rulesPort := envOr("RULES_ENGINE_PORT", "8081")
 	return Config{
 		DatabaseURL:        envOr("DATABASE_URL", "postgres://pav:pav@localhost:5432/pav?sslmode=disable"),
-		RulesEnginePort:    envOr("RULES_ENGINE_PORT", "8081"),
+		RulesEnginePort:    rulesPort,
 		TemplateEnginePort: envOr("TEMPLATE_ENGINE_PORT", "8082"),
+		DashboardAPIPort:   envOr("DASHBOARD_API_PORT", "8083"),
+		RulesEngineURL:     envOr("RULES_ENGINE_URL", "http://localhost:"+rulesPort),
+		LocalStackEndpoint: envOr("LOCALSTACK_ENDPOINT", "http://localhost:4566"),
+		AWSRegion:          envOr("AWS_DEFAULT_REGION", "us-east-1"),
 	}
 }
 

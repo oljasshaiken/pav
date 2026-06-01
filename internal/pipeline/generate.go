@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
@@ -26,42 +27,43 @@ type Generator struct {
 
 // Generate produces validated X12 for a claim.
 func (g *Generator) Generate(ctx context.Context, claimID uuid.UUID) (x12.Document, error) {
+	return g.GenerateWithTrace(ctx, claimID, noopRecorder{})
+}
+
+func (g *Generator) load(ctx context.Context, claimID uuid.UUID) (domain.ClaimContext, domain.PayerConfig, error) {
 	claimCtx, err := g.Store.LoadClaimContext(ctx, claimID)
 	if errors.Is(err, repository.ErrNotFound) || errors.Is(err, repository.ErrNoServiceLines) {
-		return x12.Document{}, ErrClaimNotFound
+		return domain.ClaimContext{}, domain.PayerConfig{}, ErrClaimNotFound
 	}
 	if err != nil {
-		return x12.Document{}, err
+		return domain.ClaimContext{}, domain.PayerConfig{}, err
 	}
 
 	pc, err := g.Store.GetActivePayerConfig(ctx, claimCtx.Claim.State, claimCtx.Claim.PayerID, "837P")
 	if err != nil && !errors.Is(err, repository.ErrNotFound) {
-		return x12.Document{}, err
+		return domain.ClaimContext{}, domain.PayerConfig{}, err
 	}
+	return claimCtx, pc, nil
+}
 
-	rules := pc.Config.ValidationRules
-	evvRules := pc.Config.EVVRules
-
+func (g *Generator) preValidate(ctx context.Context, claimCtx domain.ClaimContext, rules, evvRules json.RawMessage) error {
 	if err := g.Validate.PreValidate(ctx, claimCtx, rules); err != nil {
-		return x12.Document{}, err
+		return err
 	}
-	if err := validation.PreValidateEVV(ctx, claimCtx, evvRules); err != nil {
-		return x12.Document{}, err
-	}
+	return validation.PreValidateEVV(ctx, claimCtx, evvRules)
+}
 
+func (g *Generator) transform(ctx context.Context, claimCtx domain.ClaimContext) (x12.Document, error) {
 	doc, err := g.Engine.Transform(ctx, claimCtx)
 	if errors.Is(err, repository.ErrNotFound) {
 		return x12.Document{}, ErrConfigNotFound
 	}
-	if err != nil {
-		return x12.Document{}, err
-	}
+	return doc, err
+}
 
+func (g *Generator) postValidate(ctx context.Context, doc x12.Document, businessRules json.RawMessage) error {
 	if err := g.Validate.PostValidate(ctx, doc); err != nil {
-		return x12.Document{}, err
+		return err
 	}
-	if err := validation.PostValidateBusinessRules(ctx, doc, pc.Config.BusinessRules); err != nil {
-		return x12.Document{}, err
-	}
-	return doc, nil
+	return validation.PostValidateBusinessRules(ctx, doc, businessRules)
 }

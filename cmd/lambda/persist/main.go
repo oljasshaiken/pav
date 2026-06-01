@@ -10,10 +10,12 @@ import (
 	"github.com/pavillio/pav-edi/internal/lambda/persist"
 	"github.com/pavillio/pav-edi/internal/pipeline"
 	"github.com/pavillio/pav-edi/internal/platform"
+	"github.com/pavillio/pav-edi/internal/platform/observability"
 	"github.com/pavillio/pav-edi/internal/repository"
 )
 
 func main() {
+	observability.InitLambda()
 	lambda.Start(handle)
 }
 

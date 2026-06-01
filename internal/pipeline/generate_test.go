@@ -40,6 +40,45 @@ func (f *fakeEngine) Transform(context.Context, domain.ClaimContext) (x12.Docume
 	return f.doc, f.err
 }
 
+func TestGenerateWithTrace_recordsSteps(t *testing.T) {
+	claimID := uuid.New()
+	rules := json.RawMessage(`[{"id":"r1","cel":"true","message":"fail"}]`)
+	rec := pipeline.NewMemoryRecorder()
+	gen := pipeline.Generator{
+		Store: &fakeStore{
+			claim: domain.ClaimContext{Claim: domain.Claim{ID: claimID}},
+			config: domain.PayerConfig{
+				Config: domain.PayerConfigBody{ValidationRules: rules},
+			},
+		},
+		Engine: &fakeEngine{
+			doc: x12.Document{Raw: "ISA*TEST~", ClaimID: claimID.String(), GeneratedAt: time.Now().UTC()},
+		},
+		Validate: validation.NoopPipeline{},
+	}
+
+	doc, err := gen.GenerateWithTrace(context.Background(), claimID, rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Raw != "ISA*TEST~" {
+		t.Fatalf("edi = %q", doc.Raw)
+	}
+	steps := rec.Snapshot()
+	for _, id := range []string{pipeline.StepLoad, pipeline.StepRulesPre, pipeline.StepTransform, pipeline.StepRulesPost} {
+		found := false
+		for _, s := range steps {
+			if s.ID == id && s.Status == pipeline.StepOK {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("step %s not ok in %+v", id, steps)
+		}
+	}
+}
+
 func TestGenerate_success(t *testing.T) {
 	claimID := uuid.New()
 	rules := json.RawMessage(`[{"id":"r1","cel":"true","message":"fail"}]`)

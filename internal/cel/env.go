@@ -51,9 +51,7 @@ func ClaimBindings(ctx domain.ClaimContext) map[string]any {
 			"procedure_code":  sl.ProcedureCode,
 			"units":           sl.Units,
 		},
-		"visit": map[string]any{
-			"evv_status": visit.EVVStatus,
-		},
+		"visit": visitBindings(visit),
 		"patient": map[string]any{
 			"medicaid_id": ctx.Patient.MedicaidID,
 			"first_name":  ctx.Patient.FirstName,

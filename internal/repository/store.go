@@ -25,6 +25,11 @@ func New(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool}
 }
 
+// Ping checks postgres connectivity.
+func (s *Store) Ping(ctx context.Context) error {
+	return s.pool.Ping(ctx)
+}
+
 func (s *Store) GetActivePayerConfig(ctx context.Context, state, payerID, txType string) (domain.PayerConfig, error) {
 	const q = `
 SELECT id, state, payer_id, transaction_type, config_version, destination, active, config, updated_by

@@ -42,6 +42,11 @@ func resolvePatient(p domain.Patient, field string) (string, error) {
 		return p.LastName, nil
 	case "medicaid_id":
 		return p.MedicaidID, nil
+	case "date_of_birth":
+		if p.DateOfBirth.IsZero() {
+			return "", fmt.Errorf("patient.date_of_birth is not set")
+		}
+		return p.DateOfBirth.UTC().Format("20060102"), nil
 	default:
 		return "", fmt.Errorf("unknown patient field %q", field)
 	}
@@ -65,6 +70,11 @@ func resolveClaim(ctx domain.ClaimContext, field string) (string, error) {
 			return "", fmt.Errorf("claim.claim_number is not set")
 		}
 		return *ctx.Claim.ClaimNumber, nil
+	case "payer_id":
+		if ctx.Claim.PayerID == "" {
+			return "", fmt.Errorf("claim.payer_id is not set")
+		}
+		return ctx.Claim.PayerID, nil
 	case "total_amount":
 		sl, err := firstServiceLineOrErr(ctx)
 		if err != nil {

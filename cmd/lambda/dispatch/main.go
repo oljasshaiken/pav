@@ -13,11 +13,13 @@ import (
 	"github.com/pavillio/pav-edi/internal/lambda/rules"
 	"github.com/pavillio/pav-edi/internal/lambda/transformer"
 	"github.com/pavillio/pav-edi/internal/platform"
+	"github.com/pavillio/pav-edi/internal/platform/observability"
 	"github.com/pavillio/pav-edi/internal/repository"
 	"github.com/pavillio/pav-edi/internal/workflow"
 )
 
 func main() {
+	observability.InitLambda()
 	lambda.Start(handle)
 }
 

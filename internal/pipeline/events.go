@@ -112,6 +112,24 @@ type Parse277Result struct {
 	Response277 string `json:"response_277"`
 }
 
+// Parse271Request parses inbound 271 eligibility responses from S3.
+type Parse271Request struct {
+	S3Bucket  string `json:"s3_bucket"`
+	S3Key     string `json:"s3_key"`
+	PatientID string `json:"patient_id,omitempty"`
+	PayerID   string `json:"payer_id,omitempty"`
+}
+
+// Parse271Result stores parsed eligibility response metadata.
+type Parse271Result struct {
+	PatientID      string `json:"patient_id"`
+	InquiryRef     string `json:"inquiry_ref"`
+	PayerID        string `json:"payer_id"`
+	CoverageStatus string `json:"coverage_status"`
+	ServiceType    string `json:"service_type,omitempty"`
+	Response271    string `json:"response_271"`
+}
+
 // WorkflowError is a structured failure for Step Functions catch/DLQ.
 type WorkflowError struct {
 	Code    string `json:"code"`

@@ -29,7 +29,7 @@ func TestEnvelopeFromConfig_ISA_GS_ST(t *testing.T) {
 		t.Fatalf("ISA = %q, want %q", isa.Serialize(x12.Separators{}), wantISA)
 	}
 
-	gs := x12.BuildGS(cfg.GS, opts)
+	gs := x12.BuildGS(cfg.GS, opts, x12.DefaultX12Version)
 	wantGS := "GS*HC*PAVILLIO*TX_MCO*20260531*1200*1*X*005010X222A1~"
 	if gs.Serialize(x12.Separators{}) != wantGS {
 		t.Fatalf("GS = %q, want %q", gs.Serialize(x12.Separators{}), wantGS)

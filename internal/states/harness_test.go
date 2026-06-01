@@ -27,11 +27,21 @@ func TestFL_CELHarness(t *testing.T) { runCELHarness(t, states.FL) }
 func TestOH_CELHarness(t *testing.T) { runCELHarness(t, states.OH) }
 func TestPA_CELHarness(t *testing.T) { runCELHarness(t, states.PA) }
 func TestNY_CELHarness(t *testing.T) { runCELHarness(t, states.NY) }
+func TestCA_CELHarness(t *testing.T) { runCELHarness(t, states.CA) }
+func TestIL_CELHarness(t *testing.T) { runCELHarness(t, states.IL) }
+func TestGA_CELHarness(t *testing.T) { runCELHarness(t, states.GA) }
+func TestMI_CELHarness(t *testing.T) { runCELHarness(t, states.MI) }
+func TestNJ_CELHarness(t *testing.T) { runCELHarness(t, states.NJ) }
 
 func TestFL_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.FL) }
 func TestOH_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.OH) }
 func TestPA_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.PA) }
 func TestNY_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.NY) }
+func TestCA_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.CA) }
+func TestIL_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.IL) }
+func TestGA_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.GA) }
+func TestMI_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.MI) }
+func TestNJ_OutboundGolden(t *testing.T) { runOutboundGolden(t, states.NJ) }
 
 func runCELHarness(t *testing.T, fx states.Fixture) {
 	t.Helper()
@@ -69,19 +79,32 @@ func runCELHarness(t *testing.T, fx states.Fixture) {
 		t.Fatalf("expected no violations: %v", err)
 	}
 
-	if fx.ExtraValidationID == "ny_agency_state" {
-		bad := ctx
+	assertStateRuleViolation(t, rs, ctx, fx.ExtraValidationID)
+}
+
+func assertStateRuleViolation(t *testing.T, rs *cel.RuleSet, ctx domain.ClaimContext, ruleID string) {
+	t.Helper()
+	bad := ctx
+	switch ruleID {
+	case "ny_agency_state":
 		bad.Agency.State = "TX"
-		if err := rs.Evaluate(cel.ClaimBindings(bad)); err == nil {
-			t.Fatal("expected NY agency state violation")
-		}
-	}
-	if fx.ExtraValidationID == "fl_units_positive" {
-		bad := ctx
+	case "fl_units_positive":
 		bad.ServiceLines[0].Units = 0
-		if err := rs.Evaluate(cel.ClaimBindings(bad)); err == nil {
-			t.Fatal("expected FL units violation")
-		}
+	case "ca_units_cap":
+		bad.ServiceLines[0].Units = 25
+	case "il_agency_state":
+		bad.Agency.State = "TX"
+	case "ga_claim_state":
+		bad.Claim.State = "TX"
+	case "mi_payer_match":
+		bad.Claim.PayerID = "TX-MCO-001"
+	case "nj_medicaid_prefix":
+		bad.Patient.MedicaidID = "SYN-TX-00001"
+	default:
+		return
+	}
+	if err := rs.Evaluate(cel.ClaimBindings(bad)); err == nil {
+		t.Fatalf("expected violation for rule %q", ruleID)
 	}
 }
 

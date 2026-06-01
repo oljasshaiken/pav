@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,6 +22,11 @@ func main() {
 		{"oh", "OH-MCO-001", "CLM-DEMO-OH-001", "SYN-OH-00001", "Demo Home Care OH", "00000000-0000-4000-8000-000000000003"},
 		{"pa", "PA-MCO-001", "CLM-DEMO-PA-001", "SYN-PA-00001", "Demo Home Care PA", "00000000-0000-4000-8000-000000000004"},
 		{"ny", "NY-MCO-001", "CLM-DEMO-NY-001", "SYN-NY-00001", "Demo Home Care NY", "00000000-0000-4000-8000-000000000005"},
+		{"ca", "CA-MCO-001", "CLM-DEMO-CA-001", "SYN-CA-00001", "Demo Home Care CA", "00000000-0000-4000-8000-000000000006"},
+		{"il", "IL-MCO-001", "CLM-DEMO-IL-001", "SYN-IL-00001", "Demo Home Care IL", "00000000-0000-4000-8000-000000000007"},
+		{"ga", "GA-MCO-001", "CLM-DEMO-GA-001", "SYN-GA-00001", "Demo Home Care GA", "00000000-0000-4000-8000-000000000008"},
+		{"mi", "MI-MCO-001", "CLM-DEMO-MI-001", "SYN-MI-00001", "Demo Home Care MI", "00000000-0000-4000-8000-000000000009"},
+		{"nj", "NJ-MCO-001", "CLM-DEMO-NJ-001", "SYN-NJ-00001", "Demo Home Care NJ", "00000000-0000-4000-8000-000000000010"},
 	}
 	now := time.Date(2026, 5, 31, 12, 0, 0, 0, time.UTC)
 	for _, s := range states {
@@ -37,11 +43,11 @@ func main() {
 		clockIn := time.Date(2026, 5, 1, 9, 0, 0, 0, time.UTC)
 		ctx := domain.ClaimContext{
 			Claim: domain.Claim{
-				ID: uuid.MustParse(s.claimUUID), PayerID: s.payer, State: s.code[:2], ClaimNumber: &claimNumber,
+				ID: uuid.MustParse(s.claimUUID), PayerID: s.payer, State: strings.ToUpper(s.code), ClaimNumber: &claimNumber,
 			},
 			Authorization: domain.Authorization{ServiceType: "home_health"},
 			Patient:       domain.Patient{FirstName: "Synthetic", LastName: "Patient", MedicaidID: s.medicaid},
-			Agency:        domain.Agency{Name: s.agency, NPI: "1234567890", State: s.code[:2]},
+			Agency:        domain.Agency{Name: s.agency, NPI: "1234567890", State: strings.ToUpper(s.code)},
 			Visits:        []domain.Visit{{ClockInTime: &clockIn, EVVStatus: "VERIFIED"}},
 			ServiceLines: []domain.ClaimServiceLine{{
 				ProcedureCode: "T1019", Units: 4, Amount: &amount, DiagnosisCodes: []string{"Z9999"},

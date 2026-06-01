@@ -44,11 +44,12 @@ func StartPostgres(t *testing.T) *pgxpool.Pool {
 
 func RunMigrations(t *testing.T, connStr string) {
 	t.Helper()
-	root := filepath.Join("..", "..")
+	root := repoRoot(t)
 	files := []string{
 		"migrations/000001_canonical_domain.up.sql",
 		"migrations/000002_option1_payer_configs.up.sql",
 		"migrations/000003_option2_templates.up.sql",
+		"migrations/000004_eligibility_responses.up.sql",
 	}
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, connStr)
@@ -64,6 +65,24 @@ func RunMigrations(t *testing.T, connStr string) {
 		if _, err := pool.Exec(ctx, string(sql)); err != nil {
 			t.Fatalf("exec %s: %v", f, err)
 		}
+	}
+}
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("go.mod not found")
+		}
+		dir = parent
 	}
 }
 

@@ -8,6 +8,7 @@ Globals:
     MemorySize: 256
     Runtime: provided.al2023
     Architectures: [x86_64]
+    Tracing: Active
     Environment:
       Variables:
         DATABASE_URL: !Ref DatabaseURL
@@ -54,6 +55,23 @@ Resources:
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt ClaimsDLQ.Arn
         maxReceiveCount: 3
+
+  ClaimsDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: pav-edi-claims-dlq-not-empty
+      AlarmDescription: Claims DLQ has visible messages (validation/workflow failures)
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ClaimsDLQ.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
 
   LoadFunction:
     Type: AWS::Serverless::Function

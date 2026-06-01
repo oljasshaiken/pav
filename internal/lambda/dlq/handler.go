@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pavillio/pav-edi/internal/pipeline"
+	"github.com/pavillio/pav-edi/internal/platform/observability"
 	"github.com/pavillio/pav-edi/internal/queue"
 )
 
@@ -19,7 +20,7 @@ func (h *Handler) Handle(ctx context.Context, req pipeline.DLQPublishRequest) er
 	if req.Error == nil {
 		req.Error = &pipeline.WorkflowError{Code: "WORKFLOW_ERROR", Message: "unknown failure"}
 	}
-	return h.Publisher.Publish(ctx, queue.DLQMessage{
+	msg := queue.DLQMessage{
 		ClaimID: req.ClaimID,
 		PayerID: req.PayerID,
 		State:   req.State,
@@ -27,5 +28,7 @@ func (h *Handler) Handle(ctx context.Context, req pipeline.DLQPublishRequest) er
 		Code:    req.Error.Code,
 		Message: req.Error.Message,
 		RuleID:  req.Error.RuleID,
-	})
+	}
+	observability.LogDLQAlert(ctx, msg)
+	return h.Publisher.Publish(ctx, msg)
 }

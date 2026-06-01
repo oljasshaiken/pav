@@ -1,6 +1,6 @@
 # Pavillio EDI Framework
 
-Greenfield Go + Postgres EDI pipeline for multi-state Medicaid **837P** billing. Implements three architectural options from [RFC-EDI-001](docs/RFC-EDI-001.md); **Option 3** (CEL rules + AWS Lambda + Step Functions) is the recommended production path.
+Greenfield Go + Postgres EDI pipeline for multi-state Medicaid **837P** billing and **270/271** eligibility. Implements three architectural options from [RFC-EDI-001](docs/RFC-EDI-001.md); **Option 3** (CEL rules + AWS Lambda + Step Functions) is the recommended production path.
 
 ## Current progress
 
@@ -8,11 +8,13 @@ Greenfield Go + Postgres EDI pipeline for multi-state Medicaid **837P** billing.
 |-------|-------|--------|
 | [Phase 0](docs/spec/PHASE-0.md) | Canonical domain, dual HTTP services, dev comparison tooling | **Complete** |
 | [Phase 1](docs/spec/PHASE-1.md) | Real `005010X222A1` 837P, engine parity, two-stage validation, dry-run submit | **Complete** |
-| [Option 3](docs/spec/PHASE-OPTION3.md) | CEL rules, shared pipeline, Lambda handlers, Step Functions, multi-state configs | **Phase 1 complete** (slices 0.1–1.17) |
+| [Option 3 — Phase 1](docs/spec/PHASE-OPTION3.md) | CEL rules, shared pipeline, Lambda handlers, Step Functions, multi-state configs | **Complete** (slices 0.1–1.17) |
+| [Option 3 — Phase 2](docs/plan/PHASE-OPTION3-TASKS.md#phase-2--eligibility--evv--observability) | EVV CEL library, 270/271 eligibility, observability, states 6–10 | **Complete** (slices 2.1–2.5) |
+| [Option 3 — Phase 3](docs/plan/PHASE-OPTION3-TASKS.md#phase-3--self-service-future) | Config CRUD API, cache invalidation, payer CI matrix, SLO dashboards | **Planned** |
 
-### Option 3 slice status
+Full slice checklists: [Phase 0 tasks](docs/plan/PHASE-0-TASKS.md) · [Phase 1 tasks](docs/plan/PHASE-1-TASKS.md) · [Option 3 tasks](docs/plan/PHASE-OPTION3-TASKS.md)
 
-See [PHASE-OPTION3-TASKS.md](docs/plan/PHASE-OPTION3-TASKS.md) for full acceptance criteria.
+### Option 3 deliverables
 
 | Area | Status |
 |------|--------|
@@ -21,10 +23,40 @@ See [PHASE-OPTION3-TASKS.md](docs/plan/PHASE-OPTION3-TASKS.md) for full acceptan
 | Shared pipeline (`internal/pipeline`) | Done |
 | Redis config cache + in-memory fallback | Done |
 | Lambda handlers (load, rules, transformer, persist, parser, dispatch, dlq) | Done |
+| 271 eligibility handler (`internal/lambda/eligibility`) | Done |
 | `OutboundClaimWorkflow` — LoadClaim → Rules(pre) → Transform → Rules(post) → Persist | Done |
 | `InboundAckWorkflow` — S3 277/999 → Parser → Persist | Done |
-| Golden fixtures for TX, FL, OH, PA, NY | Done |
+| EVV CEL library (`internal/cel/evvrules`) | Done |
+| 270 outbound generation (`internal/edi/generate270.go`) | Done |
+| 271 parser + eligibility persistence (`internal/lambda/eligibility`) | Done |
+| Observability (ADR-011, `make observability-smoke`) | Done |
 | ADR-010 Option 2 freeze + CI `make compare` gate | Done |
+| Golden fixtures — 10 states (TX + FL/OH/PA/NY + CA/IL/GA/MI/NJ) | Done |
+
+### Multi-state golden coverage
+
+| State | Payer ID | Claim UUID | Config fixture |
+|-------|----------|------------|----------------|
+| TX (reference) | `TX-MCO-001` | `…0001` | [payer_config_837p_tx.json](docs/fixtures/payer_config_837p_tx.json) |
+| FL | `FL-MCO-001` | `…0002` | [payer_config_837p_fl.json](docs/fixtures/payer_config_837p_fl.json) |
+| OH | `OH-MCO-001` | `…0003` | [payer_config_837p_oh.json](docs/fixtures/payer_config_837p_oh.json) |
+| PA | `PA-MCO-001` | `…0004` | [payer_config_837p_pa.json](docs/fixtures/payer_config_837p_pa.json) |
+| NY | `NY-MCO-001` | `…0005` | [payer_config_837p_ny.json](docs/fixtures/payer_config_837p_ny.json) |
+| CA | `CA-MCO-001` | `…0006` | [payer_config_837p_ca.json](docs/fixtures/payer_config_837p_ca.json) |
+| IL | `IL-MCO-001` | `…0007` | [payer_config_837p_il.json](docs/fixtures/payer_config_837p_il.json) |
+| GA | `GA-MCO-001` | `…0008` | [payer_config_837p_ga.json](docs/fixtures/payer_config_837p_ga.json) |
+| MI | `MI-MCO-001` | `…0009` | [payer_config_837p_mi.json](docs/fixtures/payer_config_837p_mi.json) |
+| NJ | `NJ-MCO-001` | `…0010` | [payer_config_837p_nj.json](docs/fixtures/payer_config_837p_nj.json) |
+
+FL–NJ use synthetic fixtures until state companion guides arrive; goldens update when guides land.
+
+### Remaining before production
+
+From [Phase 1 success criteria](docs/plan/PHASE-OPTION3-TASKS.md#phase-1-success-criteria):
+
+- OutboundClaimWorkflow E2E in AWS dev (SAM deploy against RDS)
+- Redis cache hit >90% under load (staging)
+- Remove `make compare` from CI once serverless golden suite covers all states in staging
 
 ## Prerequisites
 
@@ -71,6 +103,27 @@ make sam-deploy-localstack       # optional SAM deploy to LocalStack
 make start-outbound-sfn          # Step Functions execution
 ```
 
+## Workflow dashboard (Option 1 + Option 3)
+
+Next.js UI at [`web/`](web/) visualizes outbound workflow steps for Option 1 and Option 3.
+
+```bash
+# After db-up migrate-up seed
+make run-dashboard-api    # :8083 BFF
+
+# terminal 2
+cp web/.env.local.example web/.env.local
+make run-web              # :3000 dashboard
+```
+
+| Mode | Backend path |
+|------|----------------|
+| Option 1 | `POST /api/claims/{id}/run?mode=option1` — rules pipeline with step trace |
+| Option 3 (local) | `POST /api/claims/{id}/run?mode=option3` — in-process `workflow.Outbound` |
+| Option 3 (SFN) | `POST /api/claims/{id}/run-sfn` + poll — requires `make sam-deploy-localstack` |
+
+Default claim: `00000000-0000-4000-8000-000000000001`. Persist step is skipped by default (`skip_persist=true`).
+
 ## Seed claim UUID
 
 `00000000-0000-4000-8000-000000000001` (payer `TX-MCO-001`)
@@ -82,11 +135,11 @@ make start-outbound-sfn          # Step Functions execution
 | GET | `/health` | Liveness |
 | GET | `/claims/{id}/edi` | Generate 837P (pre/post validation) |
 | POST | `/claims/{id}/submit?dry_run=true` | Persist EDI to `claims.x12_837`, status stays DRAFT |
-| POST | `/claims/{id}/submit` (no dry_run) | `501 NOT_IMPLEMENTED` |
+| POST | `/claims/{id}/submit` (no dry_run) | `501 NOT IMPLEMENTED` |
 
 ## Architecture
 
-Three options share domain, repository, mapping, and X12 builder code. Option 2 is **frozen** for regression only.
+Three options share domain, repository, mapping, and X12 builder code. Option 2 is **frozen** for regression only ([ADR-010](docs/decisions/ADR-010-option2-freeze.md)).
 
 ```
                     ┌─────────────────────────────────────────┐
@@ -112,7 +165,7 @@ Three options share domain, repository, mapping, and X12 builder code. Option 2 
 | **2** | `cmd/template-engine` (:8082) | `x12_templates` + mapper overrides | Frozen — parity regression via `make compare` |
 | **3** | `cmd/lambda/*` + Step Functions | Same JSONB + CEL rules | Production path ([ADR-009](docs/decisions/ADR-009-serverless-topology.md)) |
 
-### Step Functions ([ADR-009](docs/decisions/ADR-009-serverless-topology.md))
+### Data flows ([ADR-009](docs/decisions/ADR-009-serverless-topology.md))
 
 **OutboundClaimWorkflow** — claim → 837P in Postgres + S3:
 
@@ -128,7 +181,24 @@ LoadClaim → Rules(pre) → Transform → Rules(post) → Persist
 S3 (277/999) → Parser → Persist (claims.response_277)
 ```
 
+**Eligibility** (Phase 2) — 270 inquiry + 271 response:
+
+```
+270 generation (internal/edi) → outbound to payer
+S3 (271) → Eligibility Lambda → eligibility_responses table
+```
+
 Local orchestration mirrors AWS in `internal/workflow/`; `cmd/workflow-local` drives Option 3 compare mode.
+
+### Pipeline (all options)
+
+```
+LoadClaim → PreValidate → Transform → PostValidate → Persist
+```
+
+Rules and template engines must produce matching normalized EDI for the TX reference configuration. Option 3 adds CEL evaluation for `evv_rules`, `validation_rules`, and `business_rules` ([ADR-008](docs/decisions/ADR-008-cel-rules-language.md)).
+
+Payer config shape (v1): [docs/schema/payer_config_v1.json](docs/schema/payer_config_v1.json)
 
 ### Project layout
 
@@ -137,38 +207,66 @@ pav/
 ├── cmd/
 │   ├── rules-engine/          # Option 1 HTTP (:8081)
 │   ├── template-engine/       # Option 2 HTTP (:8082)
+│   ├── dashboard-api/         # Workflow BFF (:8083)
 │   ├── workflow-local/        # Option 3 local orchestrator (make compare)
-│   ├── lambda/                # Option 3 Lambda entrypoints
-│   │   ├── load/ rules/ transformer/ persist/
-│   │   ├── parser/ dispatch/ dlq/
-│   └── gen-state-goldens/     # multi-state golden generator
+│   ├── gen-state-goldens/     # multi-state golden generator
+│   └── lambda/                # Option 3 Lambda entrypoints
+│       └── load/ rules/ transformer/ persist/
+│           parser/ dispatch/ dlq/
 ├── internal/
 │   ├── api/                   # chi HTTP handlers (Options 1 & 2)
-│   ├── pipeline/              # shared Generate + event payloads
+│   │   └── dashboard/         # BFF for web workflow UI
+│   ├── pipeline/              # shared Generate + event payloads + trace
 │   ├── cel/                   # CEL env + rule evaluation
+│   │   └── evvrules/          # standard EVV rule templates
 │   ├── config/                # payer config loader + Redis cache
 │   ├── validation/            # pre/post transform (CEL + legacy shim)
 │   ├── workflow/              # outbound + inbound orchestration
-│   ├── lambda/                # Lambda handler implementations
+│   ├── lambda/                # Lambda handler implementations (incl. eligibility)
 │   ├── rules/ template/       # Option 1 & 2 transform engines
-│   ├── mapping/ edi/          # segment assembly + X12 generation
+│   ├── mapping/ edi/          # segment assembly + X12/270 generation
 │   ├── domain/ repository/    # entities + Postgres (pgx)
 │   ├── queue/                 # DLQ publisher
-│   └── states/                # FL/OH/PA/NY golden harness
-├── pkg/x12/                   # X12 builder + 277/999 parser
+│   ├── platform/observability/# structured logs, X-Ray hooks
+│   └── states/                # multi-state golden harness
+├── pkg/x12/                   # X12 builder + 277/999/271 parser
+├── web/                       # Next.js workflow dashboard
 ├── infra/                     # AWS SAM template + Step Function ASL
+│   ├── statemachine/          # outbound.asl.json, inbound.asl.json
+│   └── observability/         # CloudWatch dashboard template
 ├── migrations/                # golang-migrate SQL
-├── docs/                      # specs, plans, ADRs, fixtures, schema
+├── docs/                      # specs, plans, ADRs, fixtures, schema (see below)
 └── seeds/dev/                 # local dev seed data
 ```
 
-### Pipeline (all options)
+## Documentation (`docs/`)
 
-`LoadClaim → PreValidate → Transform → PostValidate → Persist`
-
-Rules and template engines must produce matching normalized EDI for the TX reference configuration. Option 3 adds CEL evaluation for `evv_rules`, `validation_rules`, and `business_rules` ([ADR-008](docs/decisions/ADR-008-cel-rules-language.md)).
-
-## Documentation
+```
+docs/
+├── RFC-EDI-001.md             # Architecture recommendation + phase roadmap
+├── spec/
+│   ├── PHASE-0.md             # Scaffold spec
+│   ├── PHASE-1.md             # Real 837P + validation spec
+│   └── PHASE-OPTION3.md       # CEL + serverless migration spec
+├── plan/
+│   ├── PHASE-0-TASKS.md       # Phase 0 slice checklist
+│   ├── PHASE-1-TASKS.md       # Phase 1 slice checklist
+│   └── PHASE-OPTION3-TASKS.md # Option 3 slice checklist + checkpoints
+├── decisions/                 # Architecture Decision Records (ADR-001–011)
+├── schema/
+│   ├── payer_config_v1.json   # JSON Schema for payer_configs.config
+│   ├── 001_canonical.sql      # DDL reference (canonical domain)
+│   ├── 002_payer_configs.sql  # DDL reference (Option 1 configs)
+│   └── 003_templates.sql      # DDL reference (Option 2 templates)
+└── fixtures/
+    ├── payer_config_837p_*.json   # per-state 837P configs
+    ├── payer_config_270_tx.json   # TX 270 eligibility config
+    ├── 837p_*_golden.x12          # per-state 837P goldens
+    ├── 270_tx_golden.x12          # TX 270 golden
+    ├── 271_tx_golden.x12          # TX 271 golden
+    ├── 277_tx_golden.x12          # TX 277 ack golden
+    └── 999_tx_golden.x12          # TX 999 ack golden
+```
 
 ### Specs & plans
 
@@ -196,13 +294,7 @@ Rules and template engines must produce matching normalized EDI for the TX refer
 | [ADR-008](docs/decisions/ADR-008-cel-rules-language.md) | CEL for rules evaluation |
 | [ADR-009](docs/decisions/ADR-009-serverless-topology.md) | Lambda + Step Functions topology |
 | [ADR-010](docs/decisions/ADR-010-option2-freeze.md) | Option 2 template engine freeze |
-
-### Schema & fixtures
-
-| Path | Description |
-|------|-------------|
-| [docs/schema/](docs/schema/) | SQL DDL references + [payer_config_v1.json](docs/schema/payer_config_v1.json) |
-| [docs/fixtures/](docs/fixtures/) | Golden X12, payer configs, templates (TX, FL, OH, PA, NY) |
+| [ADR-011](docs/decisions/ADR-011-observability.md) | Structured logs, X-Ray, DLQ alarm |
 
 ## Test
 
@@ -221,4 +313,5 @@ make compare                                    # three-engine parity
 go test ./internal/workflow/... -count=1        # outbound + inbound workflows
 go test ./internal/states/... -count=1          # multi-state golden harness
 go test ./internal/cel/... -bench=. -count=1    # CEL benchmark gate
+make observability-smoke                        # structured log + DLQ smoke
 ```

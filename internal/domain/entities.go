@@ -87,6 +87,17 @@ type ClaimServiceLine struct {
 	EVVSegmentData  json.RawMessage `json:"evv_segment_data,omitempty"`
 }
 
+type EligibilityResponse struct {
+	ID             uuid.UUID `json:"id"`
+	PatientID      uuid.UUID `json:"patient_id"`
+	PayerID        string    `json:"payer_id"`
+	InquiryRef     string    `json:"inquiry_ref"`
+	CoverageStatus string    `json:"coverage_status"`
+	ServiceType    string    `json:"service_type,omitempty"`
+	Response271    string    `json:"response_271"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 type ClaimContext struct {
 	Claim         Claim
 	ServiceLines  []ClaimServiceLine
@@ -97,6 +108,9 @@ type ClaimContext struct {
 }
 
 const (
-	ClaimStatusDraft  = "DRAFT"
-	EVVStatusVerified = "VERIFIED"
+	ClaimStatusDraft   = "DRAFT"
+	EVVStatusVerified  = "VERIFIED"
+	CoverageActive     = "ACTIVE"
+	CoverageInactive   = "INACTIVE"
+	CoverageUnknown    = "UNKNOWN"
 )

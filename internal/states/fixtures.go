@@ -55,5 +55,50 @@ var (
 		GoldenPath:        "docs/fixtures/837p_ny_golden.x12",
 		ExtraValidationID: "ny_agency_state",
 	}
-	All = []Fixture{FL, OH, PA, NY}
+	CA = Fixture{
+		State: "CA", PayerID: "CA-MCO-001",
+		ClaimID:     uuid.MustParse("00000000-0000-4000-8000-000000000006"),
+		ClaimNumber: "CLM-DEMO-CA-001", MedicaidID: "SYN-CA-00001",
+		AgencyName:        "Demo Home Care CA",
+		ConfigPath:        "docs/fixtures/payer_config_837p_ca.json",
+		GoldenPath:        "docs/fixtures/837p_ca_golden.x12",
+		ExtraValidationID: "ca_units_cap",
+	}
+	IL = Fixture{
+		State: "IL", PayerID: "IL-MCO-001",
+		ClaimID:     uuid.MustParse("00000000-0000-4000-8000-000000000007"),
+		ClaimNumber: "CLM-DEMO-IL-001", MedicaidID: "SYN-IL-00001",
+		AgencyName:        "Demo Home Care IL",
+		ConfigPath:        "docs/fixtures/payer_config_837p_il.json",
+		GoldenPath:        "docs/fixtures/837p_il_golden.x12",
+		ExtraValidationID: "il_agency_state",
+	}
+	GA = Fixture{
+		State: "GA", PayerID: "GA-MCO-001",
+		ClaimID:     uuid.MustParse("00000000-0000-4000-8000-000000000008"),
+		ClaimNumber: "CLM-DEMO-GA-001", MedicaidID: "SYN-GA-00001",
+		AgencyName:        "Demo Home Care GA",
+		ConfigPath:        "docs/fixtures/payer_config_837p_ga.json",
+		GoldenPath:        "docs/fixtures/837p_ga_golden.x12",
+		ExtraValidationID: "ga_claim_state",
+	}
+	MI = Fixture{
+		State: "MI", PayerID: "MI-MCO-001",
+		ClaimID:     uuid.MustParse("00000000-0000-4000-8000-000000000009"),
+		ClaimNumber: "CLM-DEMO-MI-001", MedicaidID: "SYN-MI-00001",
+		AgencyName:        "Demo Home Care MI",
+		ConfigPath:        "docs/fixtures/payer_config_837p_mi.json",
+		GoldenPath:        "docs/fixtures/837p_mi_golden.x12",
+		ExtraValidationID: "mi_payer_match",
+	}
+	NJ = Fixture{
+		State: "NJ", PayerID: "NJ-MCO-001",
+		ClaimID:     uuid.MustParse("00000000-0000-4000-8000-000000000010"),
+		ClaimNumber: "CLM-DEMO-NJ-001", MedicaidID: "SYN-NJ-00001",
+		AgencyName:        "Demo Home Care NJ",
+		ConfigPath:        "docs/fixtures/payer_config_837p_nj.json",
+		GoldenPath:        "docs/fixtures/837p_nj_golden.x12",
+		ExtraValidationID: "nj_medicaid_prefix",
+	}
+	All = []Fixture{FL, OH, PA, NY, CA, IL, GA, MI, NJ}
 )

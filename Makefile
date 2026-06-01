@@ -2,7 +2,7 @@ DATABASE_URL ?= postgres://pav:pav@localhost:5432/pav?sslmode=disable
 MIGRATE ?= migrate
 CLAIM_ID ?= 00000000-0000-4000-8000-000000000001
 
-.PHONY: db-up db-down migrate-up migrate-down seed seed-configs run-rules run-template compare test build fmt vet
+.PHONY: db-up db-down migrate-up migrate-down seed seed-configs run-rules run-template run-dashboard-api run-web compare test build fmt vet observability-smoke
 .PHONY: localstack-up localstack-down invoke-transformer sam-deploy-localstack run-outbound-workflow start-outbound-sfn enqueue-claim
 
 db-up:
@@ -69,6 +69,12 @@ run-rules:
 run-template:
 	go run ./cmd/template-engine
 
+run-dashboard-api:
+	go run ./cmd/dashboard-api
+
+run-web:
+	cd web && npm run dev
+
 compare:
 	@./scripts/compare.sh $(CLAIM_ID)
 
@@ -83,3 +89,7 @@ vet:
 
 test:
 	go test ./... -count=1
+
+observability-smoke:
+	chmod +x scripts/observability-smoke.sh
+	./scripts/observability-smoke.sh
